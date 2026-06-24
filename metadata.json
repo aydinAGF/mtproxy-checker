@@ -1,0 +1,6 @@
+{
+  "name": "MTProxy Finder",
+  "description": "An Android app to find and test MTProto proxies for Telegram.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
