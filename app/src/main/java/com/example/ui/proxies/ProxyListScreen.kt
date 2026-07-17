@@ -34,9 +34,15 @@ fun ProxyListScreen(
 ) {
     val proxies by viewModel.proxies.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
 
     LaunchedEffect(sourceUrl) {
-        viewModel.fetchProxies(sourceUrl)
+        if (sourceUrl == "clipboard://paste") {
+            val clipData = clipboardManager.getText()?.text ?: ""
+            viewModel.loadProxiesFromString(clipData)
+        } else {
+            viewModel.fetchProxies(sourceUrl)
+        }
     }
 
     Scaffold(
@@ -212,8 +218,13 @@ fun ProxyItem(proxy: Proxy, onCheck: () -> Unit) {
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
+            val displayUrl = when (proxy.type) {
+                com.example.data.ProxyType.MTPROTO -> "tg://proxy?server=${proxy.server}&port=${proxy.port}"
+                com.example.data.ProxyType.SOCKS5 -> "tg://socks?server=${proxy.server}&port=${proxy.port}"
+                com.example.data.ProxyType.HTTP -> "http://${proxy.server}:${proxy.port}"
+            }
             Text(
-                text = "tg://proxy?server=${proxy.server}&port=${proxy.port}",
+                text = displayUrl,
                 style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
@@ -221,8 +232,14 @@ fun ProxyItem(proxy: Proxy, onCheck: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
+                val detailText = when (proxy.type) {
+                    com.example.data.ProxyType.MTPROTO -> "Secret: ${proxy.secret?.take(8)}..."
+                    com.example.data.ProxyType.SOCKS5, com.example.data.ProxyType.HTTP -> {
+                        if (!proxy.username.isNullOrEmpty()) "Auth: Yes" else "Auth: No"
+                    }
+                }
                 Text(
-                    text = "Secret: ${proxy.secret.take(8)}...",
+                    text = "${proxy.type.name} | $detailText",
                     style = MaterialTheme.typography.labelSmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                 )
@@ -238,7 +255,25 @@ fun ProxyItem(proxy: Proxy, onCheck: () -> Unit) {
         }
         val context = androidx.compose.ui.platform.LocalContext.current
         val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
-        val proxyUrl = "tg://proxy?server=${proxy.server}&port=${proxy.port}&secret=${proxy.secret}"
+        val proxyUrl = when (proxy.type) {
+            com.example.data.ProxyType.MTPROTO -> "tg://proxy?server=${proxy.server}&port=${proxy.port}&secret=${proxy.secret}"
+            com.example.data.ProxyType.SOCKS5 -> {
+                var url = "tg://socks?server=${proxy.server}&port=${proxy.port}"
+                if (!proxy.username.isNullOrEmpty()) url += "&user=${proxy.username}"
+                if (!proxy.password.isNullOrEmpty()) url += "&pass=${proxy.password}"
+                url
+            }
+            com.example.data.ProxyType.HTTP -> {
+                var url = "http://"
+                if (!proxy.username.isNullOrEmpty()) {
+                    url += proxy.username
+                    if (!proxy.password.isNullOrEmpty()) url += ":${proxy.password}"
+                    url += "@"
+                }
+                url += "${proxy.server}:${proxy.port}"
+                url
+            }
+        }
         Row {
             IconButton(
                 onClick = {
@@ -254,23 +289,25 @@ fun ProxyItem(proxy: Proxy, onCheck: () -> Unit) {
                     modifier = Modifier.size(16.dp)
                 )
             }
-            IconButton(
-                onClick = {
-                    try {
-                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(proxyUrl))
-                        context.startActivity(intent)
-                    } catch (e: Exception) {
-                        android.widget.Toast.makeText(context, "Telegram not installed", android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                },
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "Open in Telegram",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(16.dp)
-                )
+            if (proxy.type != com.example.data.ProxyType.HTTP) {
+                IconButton(
+                    onClick = {
+                        try {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(proxyUrl))
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            android.widget.Toast.makeText(context, "Telegram not installed", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "Open in Telegram",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
         }
     }

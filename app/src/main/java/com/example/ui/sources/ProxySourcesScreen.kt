@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
@@ -52,6 +53,9 @@ fun ProxySourcesScreen(
                     titleContentColor = MaterialTheme.colorScheme.onBackground
                 ),
                 actions = {
+                    IconButton(onClick = { onSourceClick("clipboard://paste") }) {
+                        Icon(Icons.Filled.ContentPaste, contentDescription = "Scan from Clipboard", tint = MaterialTheme.colorScheme.onBackground)
+                    }
                     IconButton(onClick = { filePickerLauncher.launch(arrayOf("text/plain")) }) {
                         Icon(Icons.Filled.Add, contentDescription = "Import TXT File", tint = MaterialTheme.colorScheme.onBackground)
                     }
@@ -123,7 +127,7 @@ fun SourceItem(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "CURRENT SOURCE",
+                    text = source.name.uppercase(),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Medium,

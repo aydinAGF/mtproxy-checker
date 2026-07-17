@@ -5,7 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.Proxy
 import com.example.network.ProxyFetcher
-import com.example.network.MTProtoChecker
+import com.example.network.ProxyChecker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,6 +33,16 @@ class ProxyListViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    fun loadProxiesFromString(content: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _currentSource.value = "Clipboard"
+            val result = fetcher.parseProxiesFromString(content, "Clipboard")
+            _proxies.value = result
+            _isLoading.value = false
+        }
+    }
+
     fun checkAllProxies() {
         viewModelScope.launch {
             val currentProxies = _proxies.value.map { it.copy(isChecking = true, status = com.example.data.ProxyStatus.UNTESTED) }
@@ -40,7 +50,7 @@ class ProxyListViewModel(application: Application) : AndroidViewModel(applicatio
 
             currentProxies.forEachIndexed { index, proxy ->
                 launch {
-                    val latency = MTProtoChecker.checkProxy(proxy.server, proxy.port, proxy.secret)
+                    val latency = ProxyChecker.checkProxy(proxy)
                     val updatedStatus = if (latency != null) com.example.data.ProxyStatus.VALID else com.example.data.ProxyStatus.INVALID
                     
                     // Update only this proxy
@@ -65,7 +75,7 @@ class ProxyListViewModel(application: Application) : AndroidViewModel(applicatio
                 this[index] = this[index].copy(isChecking = true)
             }
 
-            val latency = MTProtoChecker.checkProxy(proxy.server, proxy.port, proxy.secret)
+            val latency = ProxyChecker.checkProxy(proxy)
             val updatedStatus = if (latency != null) com.example.data.ProxyStatus.VALID else com.example.data.ProxyStatus.INVALID
 
             _proxies.value = _proxies.value.toMutableList().apply {
